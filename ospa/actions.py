@@ -1,7 +1,7 @@
 from ospa.constants import tc
 
 
-time = 0.2/tc
+time = 0.3/tc
 actions = [
             (-0.0, 0, time), (-0.01745, 0, time), (-0.03491, 0, time), (-0.05236, 0, time), (-0.06981, 0, time), 
             (-0.08727, 0, time), (-0.10472, 0, time), (-0.0, 0.12684496748616697, time), (-0.05236, 0.12684496748616697, time),

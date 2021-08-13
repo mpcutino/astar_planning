@@ -74,3 +74,9 @@ def from_df_format_to_Flight_State(row_data):
     # return FlightState.order_as_input(row_data, 0, 0)
     return FlightState(0, 0, row_data[2]/Uc, row_data[3]/Uc, row_data[4], row_data[5], 2*row_data[0]/c, 2*row_data[1]/c)
     # return FlightState(0, 0, row_data[2], row_data[3], row_data[4], row_data[5], row_data[0], row_data[1])
+
+
+def fs2dimensional(fs):
+    res = FlightState(fs.tail_angle, fs.fa, fs.u*Uc, fs.v*Uc, fs.theta, fs.omega, fs.x*c/2, fs.z*c/2)
+    res.cost = fs.cost
+    return res
