@@ -1,6 +1,6 @@
 from torch import nn
 
-from ann.structures.basic import BasicNN
+from ml_algorithms.ann.structures.basic import BasicNN
 
 
 class DirectSNet(BasicNN):
@@ -9,37 +9,46 @@ class DirectSNet(BasicNN):
         super(DirectSNet, self).__init__()
         self.name = "direct_snet"
 
-        self.features, self.classifier = self.__net_structure__(in_size, out_size)
+        self.init_feat, self.res_feat, self.classifier = self.__net_structure__(in_size, out_size)
 
     def forward(self, x):
-        for i, f in enumerate(self.features):
+        x = self.init_feat(x)
+        for i, f in enumerate(self.res_feat):
             # apply residual connection if not in the last feature sequential layer
-            x = f(x) + x if i != len(self.features) - 1 else f(x)
+            x = f(x) + x if i != len(self.res_feat) - 1 else f(x)
         return self.classifier(x)
 
     def __net_structure__(self, in_size, out_size):
-        features = nn.ModuleList([
-            nn.Sequential(
-                self.__module__(in_size, 50),
-                self.__module__(50, in_size),
-            ),
-            # apply residual connection, then:
-            nn.Sequential(
-                self.__module__(in_size, 25),
-                self.__module__(25, in_size)
-            ),
-            # apply residual connection, then:
-            self.__module__(in_size, 40)
-        ])
-        classifier = nn.Linear(40, out_size)
+        residual_size = 350
+        ending_size = 512
 
-        return features, classifier
+        init_features = nn.Sequential(
+            self.__module__(in_size, 1024),
+            self.__module__(1024, residual_size)
+        )
+        residual_features = nn.ModuleList([
+            nn.Sequential(
+                self.__module__(residual_size, 200),
+                self.__module__(200, residual_size),
+            ),
+            # apply residual connection, then:
+            nn.Sequential(
+                self.__module__(residual_size, 100),
+                self.__module__(100, residual_size)
+            ),
+            # apply residual connection, then:
+            self.__module__(residual_size, ending_size)
+        ])
+        classifier = nn.Linear(ending_size, out_size)
+
+        return init_features, residual_features, classifier
 
     @staticmethod
     def __module__(in_size, out_size, dropout=.15):
         return nn.Sequential(
             nn.Linear(in_size, out_size),
             nn.LayerNorm(out_size),
+            nn.ReLU(),
             nn.Dropout(dropout)
         )
 

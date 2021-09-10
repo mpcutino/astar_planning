@@ -16,7 +16,7 @@ def standard(epochs, network, loader_function, optimizer, criterion,
 
             loss.backward()
             optimizer.step()
-        if i % print_every == 0:
+        if i % print_every == 0 or i == epochs - 1:
             print("==== Iter {0} =====".format(i))
             print("Avg. Loss: {0}".format(running_loss / total_items))
             if accuracy_function:
