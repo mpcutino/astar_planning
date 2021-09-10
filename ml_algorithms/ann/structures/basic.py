@@ -5,4 +5,7 @@ class BasicNN(nn.Module):
 
     def __init__(self):
         super(BasicNN, self).__init__()
-        self.name = "basic_nn"
+
+    @staticmethod
+    def name():
+        return "basic_nn"

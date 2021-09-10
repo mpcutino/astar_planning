@@ -47,17 +47,26 @@ if __name__ == '__main__':
 
     loaders_dict = {
         'train': load_standard_data(
-            StandardDS(X_train, y_train), use_cuda_, device_, batch_size=128
+            StandardDS(X_train, y_train), use_cuda_, device_, batch_size=128, shuffle=True
         ),
-        'eval': load_standard_data(
+        'val': load_standard_data(
             StandardDS(X_val, y_val), use_cuda_, device_, batch_size=128
         )
     }
+    phases = list(loaders_dict.keys())
     m = DirectSNet(X_train.shape[1], len(train_df[action_col_].unique()))
     m.to(device_)
-    # TODO!! Put all of this in one function. Do Feature Engineering (add more characteristics. For instance,
-    #  less than half of the trajectory traveled)
+
     vc = train_df[action_col_].value_counts()
     loss_w = torch.FloatTensor((1 - vc/vc.sum())**5).to(device_)
-    standard(10, m, loaders_dict['train'], torch.optim.RMSprop(m.parameters()), torch.nn.CrossEntropyLoss(weight=loss_w),
-             accuracy_function=lambda y_hat, y: (y_hat.argmax(dim=1) == y).sum().float(), print_every=2)
+    m, history = standard(
+        1, m, lambda phase: loaders_dict[phase](),
+        torch.optim.RMSprop(m.parameters()),
+        torch.nn.CrossEntropyLoss(weight=loss_w),
+        accuracy_function=lambda y_hat, y: (y_hat.argmax(dim=1) == y).sum().float(),
+        print_every=2,
+        phases=phases
+    )
+    m.save_model()
+
+    # TODO!! Put all of this in one function. Plot and save history

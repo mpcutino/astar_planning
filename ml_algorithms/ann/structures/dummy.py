@@ -1,3 +1,6 @@
+import os
+import json
+import torch
 from torch import nn
 
 from ml_algorithms.ann.structures.basic import BasicNN
@@ -7,7 +10,8 @@ class DirectSNet(BasicNN):
 
     def __init__(self, in_size, out_size):
         super(DirectSNet, self).__init__()
-        self.name = "direct_snet"
+        self.in_size = in_size
+        self.out_size = out_size
 
         self.init_feat, self.res_feat, self.classifier = self.__net_structure__(in_size, out_size)
 
@@ -42,6 +46,35 @@ class DirectSNet(BasicNN):
         classifier = nn.Linear(ending_size, out_size)
 
         return init_features, residual_features, classifier
+
+    def save_model(self, save_folder=""):
+        if len(save_folder) and not os.path.exists(save_folder):
+            os.makedirs(save_folder)
+
+        with open(os.path.join(save_folder, "{0}_params.json".format(self.name())), "w") as fd:
+            json.dump(self.params_dict(), fd)
+        torch.save(self.state_dict(), os.path.join(save_folder, "{0}.pth".format(self.name())))
+
+    def params_dict(self):
+        return {
+            'in_size': self.in_size,
+            'out_size': self.out_size
+        }
+
+    @staticmethod
+    def load_model(save_folder=""):
+        with open(os.path.join(os.path.join(save_folder, "{0}_params.json".format(DirectSNet.name())))) as fd:
+            d = json.load(fd)
+        model = DirectSNet(**d)
+        model.load_state_dict(
+            torch.load(os.path.join(save_folder, "{0}.pth".format(DirectSNet.name())))
+        )
+        model.eval()
+        return model
+
+    @staticmethod
+    def name():
+        return "direct_snet"
 
     @staticmethod
     def __module__(in_size, out_size, dropout=.15):

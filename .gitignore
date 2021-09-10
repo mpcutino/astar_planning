@@ -6,5 +6,7 @@
 *.xlsx
 
 *.png
+*.pth
+*params.json
 
 TODO.txt
