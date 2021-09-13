@@ -23,11 +23,10 @@ def do_training():
     else:
         print("Not using cuda")
 
-    X_train, X_val, X_test, y_train, y_val, y_test = load_train_val_test(train_csv_path_, test_csv_path_,
+    X_train, X_val, X_test, y_train, y_val, y_test, _ = load_train_val_test(train_csv_path_, test_csv_path_,
                                                                          action_col_, continuous_var)
 
     print("Training samples: {0}".format(X_train.shape))
-
 
     loaders_dict = {
         'train': load_standard_data(
@@ -44,7 +43,7 @@ def do_training():
     vc = pd.Series(y_train).value_counts()
     loss_w = torch.FloatTensor((1 - vc / vc.sum()) ** 5).to(device_)
     m, history = standard(
-        500, m, lambda phase: loaders_dict[phase](),
+        300, m, lambda phase: loaders_dict[phase](),
         torch.optim.RMSprop(m.parameters()),
         torch.nn.CrossEntropyLoss(weight=loss_w),
         accuracy_function=lambda y_hat, y: (y_hat.argmax(dim=1) == y).sum().float().item(),
@@ -62,10 +61,10 @@ def do_eval():
     device = next(model.parameters()).device
     use_cuda = device.type == 'cuda'
 
-    X_train, X_val, X_test, y_train, y_val, y_test = load_train_val_test(train_csv_path_, test_csv_path_,
+    X_train, X_val, X_test, y_train, y_val, y_test, _ = load_train_val_test(train_csv_path_, test_csv_path_,
                                                                          action_col_, continuous_var)
 
-    print("Training samples: {0}".format(X_train.shape))
+    print("Testing samples: {0}".format(X_test.shape))
 
     loaders_dict = {
         'val': load_standard_data(
@@ -90,8 +89,8 @@ def do_eval():
 
 if __name__ == '__main__':
     # ====== PARAMS
-    train_csv_path_ = "../../data/landing_train.csv"
-    test_csv_path_ = "../../data/landing_test.csv"
+    train_csv_path_ = "../../data/landing_train_mlp_format.csv"
+    test_csv_path_ = "../../data/landing_test_mlp_format.csv"
 
     action_col_ = "action_codes"
     continuous_var = ['u', 'v', 'theta', 'omega', 'x', 'z']

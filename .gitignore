@@ -9,4 +9,6 @@
 *.pth
 *params.json
 
+*old_format*
+
 TODO.txt

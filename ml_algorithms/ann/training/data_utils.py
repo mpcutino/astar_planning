@@ -32,5 +32,7 @@ def load_train_val_test(train_csv_path, test_csv_path, action_col, continuous_va
         X_train = st_scaler.transform(X_train)
         X_val = st_scaler.transform(X_val)
         X_test = st_scaler.transform(X_test)
+    else:
+        st_scaler = None
 
-    return X_train, X_val, X_test, y_train, y_val, y_test
+    return X_train, X_val, X_test, y_train, y_val, y_test, st_scaler
