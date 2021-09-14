@@ -1,17 +1,16 @@
 from ast import literal_eval
 
+import torch
 import numpy as np
 import pandas as pd
-from torch import FloatTensor
 
 from data.load_data import load_csv
 
-from ospa.utils import get_next_state
 from ospa.flight_state import FlightState
 
 from ml_algorithms.ann.structures.dummy import DirectSNet
 from ml_algorithms.ann.training.data_utils import load_train_val_test
-from ml_algorithms.ann.validation.utils import get_action_codes, get_new_input, do_one_path
+from ml_algorithms.ann.validation.utils import get_action_codes, do_one_path
 
 
 METRICS = ['Cost', 'Time', 'Precision', 'Error', 'V-error', 'P-error']
@@ -31,15 +30,15 @@ def get_OSPA_values(ospa_df_path):
 
     if 'target_state' in ospa_df.columns and 'current_state' in ospa_df.columns:
         aux = gb_df.agg({'current_state': lambda x: x.iloc[-1], 'target_state': lambda x: x.iloc[-1]})
-        cols = ["uc", "vc", "thetac", "omegac", "xc", "zc"]
+        cols = ["uc", "vc", "omegac", "thetac", "xc", "zc"]
         aux[cols] = pd.DataFrame(aux["current_state"].to_list(), index=aux.index)
-        cols = ["uf", "vf", "thetaf", "omegaf", "xf", "zf"]
+        cols = ["uf", "vf", "omegaf", "thetaf", "xf", "zf"]
         aux[cols] = pd.DataFrame(aux["target_state"].to_list(), index=aux.index)
 
         aux["u"] = aux["uf"] - aux["uc"]
         aux["v"] = aux["vf"] - aux["vc"]
-        aux["theta"] = aux["thetaf"] - aux["thetac"]
         aux["omega"] = aux["omegaf"] - aux["omegac"]
+        aux["theta"] = aux["thetaf"] - aux["thetac"]
         aux["x"] = aux["xf"] - aux["xc"]
         aux["z"] = aux["zf"] - aux["zc"]
 
@@ -53,11 +52,11 @@ def get_OSPA_values(ospa_df_path):
 
 def get_directsnet_values(model_folder, mlp_train_data_path, mlp_test_data_path, test_data_path_full_format):
     action_col_ = "action_codes"
-    continuous_var = ['u', 'v', 'theta', 'omega', 'x', 'z']
+    continuous_var = ['u', 'v', 'omega', 'theta', 'x', 'z']
 
     action_codes_dict = get_action_codes(mlp_test_data_path)
     full_format_df = load_csv(test_data_path_full_format,
-                  **{'converters': {"current_state": literal_eval, "target_state": literal_eval}})
+                              **{'converters': {"current_state": literal_eval, "target_state": literal_eval}})
 
     gb_df = full_format_df.groupby(by='id_trajectory')
     # get only the first value in the trajectory
@@ -67,28 +66,26 @@ def get_directsnet_values(model_folder, mlp_train_data_path, mlp_test_data_path,
     scaler = out[-1]
 
     model = DirectSNet.load_model(model_folder)
-    device = next(model.parameters()).device
+    use_cuda = torch.cuda.is_available()
+    device = torch.device('cuda' if use_cuda else 'cpu')
     model.to(device)
 
     dict_as_ospa = {
         'current_state': [], 'target_state': [], 'incremental_cost': [], 'id_trajectory': [], 'id_in_seq': []
     }
     for _, r in aux_df.iterrows():
-        cs = np.array(r.current_state)
-        ts = np.array(r.target_state)
+        cs_fs = FlightState.from_jint_data(*r.current_state)
+        ts_fs = FlightState.from_jint_data(*r.target_state)
 
-        cs_fs = FlightState(0, 0, *cs)
-        ts_fs = FlightState(0, 0, *ts)
-
-        path = do_one_path(model, cs_fs, ts_fs, action_codes_dict, r.timestep, scaler=scaler)
+        path = do_one_path(model, cs_fs, ts_fs, action_codes_dict, r.timestep, scaler=scaler, device=device)
         for i, s in enumerate(path):
-            dict_as_ospa['current_state'].append([s.u, s.v, s.theta, s.omega, s.x, s.z])
-            dict_as_ospa['target_state'].append(ts)
+            dict_as_ospa['current_state'].append([s.u, s.v, s.omega, s.theta, s.x, s.z])
+            dict_as_ospa['target_state'].append(r.target_state)
             dict_as_ospa['incremental_cost'].append(s.cost)
             dict_as_ospa['id_trajectory'].append(r.id_trajectory)
             dict_as_ospa['id_in_seq'].append(i)
 
-    pd.DataFrame(dict_as_ospa).to_csv("model_output_data.csv")
+    pd.DataFrame(dict_as_ospa).to_csv("model_output_data.csv", index=False)
 
 
 if __name__ == '__main__':

@@ -21,17 +21,18 @@ def get_new_input(ts_fs, cs_fs):
     return ts_fs.minus(cs_fs)
 
 
-def do_one_path(model, cs_fs, ts_fs, action_codes_dict, timestep, scaler=None):
+def do_one_path(model, cs_fs, ts_fs, action_codes_dict, timestep, scaler=None, device='cpu'):
     path = []
     input_fs = get_new_input(ts_fs, cs_fs)
     # the input is the difference. Loop while the difference on the x-value is bigger than 0 or the model says stop
     while input_fs.x > 0:
         path.append(cs_fs)
-        input = [input_fs.u, input_fs.v, input_fs.theta, input_fs.omega, input_fs.x, input_fs.z]
+        input = [input_fs.u, input_fs.v, input_fs.omega, input_fs.theta, input_fs.x, input_fs.z]
         input = scaler.transform([input]) if scaler else [input]
 
-        action_code = model(FloatTensor(input)).argmax(dim=1)
+        action_code = model(FloatTensor(input).to(device)).argmax(dim=1)
         action = list(action_codes_dict[action_code.item()]) + [timestep/tc]
+        action[1] = action[1]*tc
 
         # the input of the ospa model is a-dimensional
         cs_fs = get_next_state(fs2Adimensional(cs_fs), action, fs2Adimensional(ts_fs))

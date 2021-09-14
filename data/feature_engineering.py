@@ -11,20 +11,20 @@ def transform_df(csv_path, save_name=""):
         'converters': {"current_state": literal_eval, "target_state": literal_eval},
     })
     df.dropna(inplace=True)
-    # assuming u, v, theta, omega, x, z . TODO check!!
-    cols = ["uc", "vc", "thetac", "omegac", "xc", "zc"]
+    # assuming u, v, omega, theta, x, z . Checked!! this is the way!!
+    cols = ["uc", "vc", "omegac", "thetac", "xc", "zc"]
     df[cols] = pd.DataFrame(df["current_state"].to_list(), index=df.index)
-    cols = ["uf", "vf", "thetaf", "omegaf", "xf", "zf"]
+    cols = ["uf", "vf", "omegaf", "thetaf", "xf", "zf"]
     df[cols] = pd.DataFrame(df["target_state"].to_list(), index=df.index)
 
     df["u"] = df["uf"] - df["uc"]
     df["v"] = df["vf"] - df["vc"]
-    df["theta"] = df["thetaf"] - df["thetac"]
     df["omega"] = df["omegaf"] - df["omegac"]
+    df["theta"] = df["thetaf"] - df["thetac"]
     df["x"] = df["xf"] - df["xc"]
     df["z"] = df["zf"] - df["zc"]
     # maintain cols
-    cols = ["id_trajectory", "u", "v", "theta", "omega", "x", "z", "action"]
+    cols = ["id_trajectory", "u", "v", "omega", "theta", "x", "z", "action"]
     rm_cols = [c for c in df.columns if c not in cols]
     df.drop(columns=rm_cols, inplace=True)
 
@@ -73,8 +73,8 @@ def check_same_action_codes(df1_path, df2_path):
 if __name__ == '__main__':
     # group_by_split("data.csv")
 
-    # transform_df("landing_train.csv", save_name="landing_train_mlp_format")
+    transform_df("landing_train.csv", save_name="landing_train_mlp_format")
     # transform_df("landing_test.csv", save_name="landing_test_mlp_format")
-    check_same_action_codes("landing_train_mlp_format.csv", "landing_test_mlp_format.csv")
+    # check_same_action_codes("landing_train_mlp_format.csv", "landing_test_mlp_format.csv")
 
     # split_train_test("filtered.csv", **{'test_size': .3, 'shuffle': True, 'random_state': 40})

@@ -137,15 +137,15 @@ def ode_dydt(delta_t, fa):
         dh = -w * cos(theta) + u * sin(theta)
 
         dalpha = (u * dw - w * du) / Ub**2
-       
+
         return [du, dw, dq, dtheta, dx, dh]
 
     return model
 
 
-def get_next_state(state, action, final_state, h = 0.03):
-    ''' state: Flight state, 
-        action: (tail angle, frequency, time step), 
+def get_next_state(state, action, final_state, h=0.03):
+    ''' state: Flight state,
+        action: (tail angle, frequency, time step),
         final_state: Final state
         h: model step'''
     
@@ -181,6 +181,8 @@ def get_next_state(state, action, final_state, h = 0.03):
     everything_ok = len(aux) == 0
     if everything_ok:
         aux = Y
+    else:
+        return -1
         
     tim = len(aux)/len(Y)
     Y = aux

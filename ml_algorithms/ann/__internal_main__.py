@@ -93,7 +93,7 @@ if __name__ == '__main__':
     test_csv_path_ = "../../data/landing_test_mlp_format.csv"
 
     action_col_ = "action_codes"
-    continuous_var = ['u', 'v', 'theta', 'omega', 'x', 'z']
+    continuous_var = ['u', 'v', 'omega', 'theta', 'x', 'z']
     use_cuda_ = torch.cuda.is_available()
     device_ = torch.device('cuda' if use_cuda_ else 'cpu')
 

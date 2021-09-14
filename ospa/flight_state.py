@@ -1,7 +1,7 @@
 from math import sqrt, pi, radians
 
 
-from ospa.constants import Uc, c, k_aero
+from ospa.constants import Uc, c, tc
 
 
 class FlightState:
@@ -39,6 +39,10 @@ class FlightState:
         x, z, u, v, theta, omega = input_tuple
         return FlightState(tail_angle, fa, u, v, theta, omega, x, z)
 
+    @staticmethod
+    def from_jint_data(u, v, omega, theta, x, z):
+        return FlightState(0, 0, u, v, theta, omega, x, z)
+
     def realXvalue(self):
         return self.x * c
 
@@ -72,12 +76,26 @@ class FlightState:
 
 
 def fs2dimensional(fs):
-    res = FlightState(fs.tail_angle, fs.fa, fs.u*Uc, fs.v*Uc, fs.theta, fs.omega, fs.x*c/2, fs.z*c/2)
+    res = FlightState(fs.tail_angle, fs.fa, 2*fs.u*tc/c, 2*fs.v*tc/c, fs.theta, fs.omega, fs.x*c/2, fs.z*c/2)
     res.cost = fs.cost
     return res
 
 
 def fs2Adimensional(fs):
-    res = FlightState(fs.tail_angle, fs.fa, fs.u/Uc, fs.v/Uc, fs.theta, fs.omega, fs.x*2/c, fs.z*2/c)
+    res = FlightState(fs.tail_angle, fs.fa, fs.u*c/(2*tc), fs.v*c/(2*tc), fs.theta, fs.omega, fs.x*2/c, fs.z*2/c)
     res.cost = fs.cost
     return res
+
+
+def from_df_format_to_Flight_State(row_data):
+    # X axis position (m)
+    # Z axis position (m)
+    # Velocity in the X axis (m/s)
+    # Velocity in the Z axis (m/s)
+    # Pitch value (rad)
+    # Angular velocity (rad/s)
+
+    # return FlightState.order_as_input(row_data, 0, 0)
+    return FlightState(0, 0, row_data[2] / Uc, row_data[3] / Uc, row_data[4], row_data[5], 2 * row_data[0] / c,
+                       2 * row_data[1] / c)
+    # return FlightState(0, 0, row_data[2], row_data[3], row_data[4], row_data[5], row_data[0], row_data[1])
