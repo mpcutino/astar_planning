@@ -70,6 +70,12 @@ def check_same_action_codes(df1_path, df2_path):
     return eq
 
 
+def get_avg_trajectory_length(df_path):
+    df = pd.read_csv(df_path)
+    vc = df.groupby(by='id_trajectory').size()
+    print("Avg. size: ", vc.mean())
+
+
 if __name__ == '__main__':
     # group_by_split("data.csv")
 

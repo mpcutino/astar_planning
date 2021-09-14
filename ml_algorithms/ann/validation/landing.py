@@ -88,12 +88,50 @@ def get_directsnet_values(model_folder, mlp_train_data_path, mlp_test_data_path,
     pd.DataFrame(dict_as_ospa).to_csv("model_output_data.csv", index=False)
 
 
-if __name__ == '__main__':
-    # get_OSPA_values("../../../data/landing_test.csv")
+def compute_error(model_data_path, ospa_data_path, points=10):
+    model_df = load_csv(model_data_path,
+                        **{'converters': {"current_state": literal_eval, "target_state": literal_eval}})
+    ospa_df = load_csv(ospa_data_path,
+                       **{'converters': {"current_state": literal_eval, "target_state": literal_eval}})
 
-    get_directsnet_values(
-        "../",
-        "../../../data/landing_train_mlp_format.csv",
-        "../../../data/landing_test_mlp_format.csv",
-        "../../../data/landing_test.csv"
-    )
+    difference, counts = 0, 0
+    for id_t in ospa_df.id_trajectory.unique():
+        ospa_subset = ospa_df[ospa_df['id_trajectory'] == id_t]
+        model_subset = model_df[model_df['id_trajectory'] == id_t]
+
+        if model_subset.empty:
+            print("Not model trajectory for {0}".format(id_t))
+            continue
+
+        cols = ["u", "v", "omega", "theta", "x", "z"]
+        ospa_path = pd.DataFrame(ospa_subset["current_state"].to_list(), columns=cols)
+        model_path = pd.DataFrame(model_subset["current_state"].to_list(), columns=cols)
+
+        points = min([points, len(ospa_path), len(model_path)])
+
+        sampler, follower = (ospa_path, model_path) if len(ospa_path) < len(model_path) else (model_path, ospa_path)
+
+        # random sample of points
+        ospa_sample = sampler.sample(points)
+        # get the follower points according to the sampler sample
+        model_sample = follower.loc[ospa_sample.index]
+
+        path_dif = sum(((model_sample['z'] - ospa_sample['z'])**2 + (model_sample['x'] - ospa_sample['x'])**2)**.5)
+        difference += path_dif
+        counts += points
+    print("Avg. difference between ospa and the model ", difference/counts)
+
+
+if __name__ == '__main__':
+
+    # get_OSPA_values("../../../data/landing_test.csv")
+    # get_OSPA_values("model_output_data.csv")
+
+    # get_directsnet_values(
+    #     "../",
+    #     "../../../data/landing_train_mlp_format.csv",
+    #     "../../../data/landing_test_mlp_format.csv",
+    #     "../../../data/landing_test.csv"
+    # )
+
+    compute_error("model_output_data.csv", "../../../data/landing_test.csv")

@@ -88,12 +88,20 @@ class DirectSNet(BasicNN):
 
 if __name__ == '__main__':
     import torch
+    import time
 
     n_ = DirectSNet(6, 30)
+    use_cuda = torch.cuda.is_available()
+    device = torch.device('cuda' if use_cuda else 'cpu')
+    n_.to(torch.device(device))
     n_.eval()
-    inp_ = torch.rand((1, 6), dtype=torch.float)
-    print(inp_)
-    out_ = n_(inp_)
+    count, total_ellapsed = 10000, 0.0
+    for i in range(count):
+        start = time.time()
+        inp_ = torch.rand((1, 6), dtype=torch.float, device=device)
+        out_ = n_(inp_)
+        total_ellapsed += time.time() - start
+    print("Total ellapsed {0}s in {1} iterations, with and average of {2}it/s".
+          format(total_ellapsed, count, total_ellapsed/count))
 
-    print(out_.size())
     print(sum([p.numel() for p in n_.parameters()]))
