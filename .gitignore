@@ -8,6 +8,7 @@
 *.png
 *.pth
 *params.json
+*.rf
 
 *old_format*
 

@@ -3,6 +3,7 @@ from ast import literal_eval
 import torch
 import numpy as np
 import pandas as pd
+from sklearn.metrics import classification_report
 
 from data.load_data import load_csv
 
@@ -122,16 +123,56 @@ def compute_error(model_data_path, ospa_data_path, points=10):
     print("Avg. difference between ospa and the model ", difference/counts)
 
 
+def classification_report_like_sklearn(model_folder):
+
+    # class SklearnEmulator:
+    #
+    #     def __init__(self, model):
+    #         self.model = model
+    #
+    #     def predict(self, x):
+    #         out = self.model(x)
+    #         return out.numpy()
+
+    #
+    continuous_var = ['u', 'v', 'omega', 'theta', 'x', 'z']
+    action_col = "action_codes"
+    train_csv_path = "../../../data/landing_train_mlp_format.csv"
+    test_csv_path = "../../../data/landing_test_mlp_format.csv"
+    #
+    X_train, X_val, X_test, y_train, y_val, y_test, _ = load_train_val_test(train_csv_path, test_csv_path,
+                                                                            action_col, continuous_var)
+
+    model = DirectSNet.load_model(model_folder)
+    use_cuda = torch.cuda.is_available()
+    device = torch.device('cuda' if use_cuda else 'cpu')
+    model.to(device)
+    X_test = torch.from_numpy(X_test).float()
+    # ske = SklearnEmulator(model)
+    preds = []
+    for m_input in X_test:
+        y_pred = model(m_input.to(device).view(1, -1))
+        action = y_pred.argmax(dim=1).cpu().item()
+        preds.append(action)
+    print(classification_report(y_test, np.array(preds)))
+
+
 if __name__ == '__main__':
+    #
+    m_folder_ = "../"
+    #
 
     # get_OSPA_values("../../../data/landing_test.csv")
     # get_OSPA_values("model_output_data.csv")
+    # get_OSPA_values("../../random_forest/rf_output_data.csv")
 
     # get_directsnet_values(
-    #     "../",
+    #     m_folder_,
     #     "../../../data/landing_train_mlp_format.csv",
     #     "../../../data/landing_test_mlp_format.csv",
     #     "../../../data/landing_test.csv"
     # )
+    classification_report_like_sklearn(m_folder_)
 
-    compute_error("model_output_data.csv", "../../../data/landing_test.csv")
+    # compute_error("model_output_data.csv", "../../../data/landing_test.csv")
+    # compute_error("../../random_forest/rf_output_data.csv", "../../../data/landing_test.csv")

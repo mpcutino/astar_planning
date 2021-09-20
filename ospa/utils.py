@@ -181,7 +181,8 @@ def get_next_state(state, action, final_state, h=0.03):
     everything_ok = len(aux) == 0
     if everything_ok:
         aux = Y
-    else:
+    elif len(aux) == 1:
+        # there is only one state, the one that you came from
         return -1
         
     tim = len(aux)/len(Y)
