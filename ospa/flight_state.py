@@ -69,6 +69,13 @@ class FlightState:
                            self.x - other.x,
                            self.z - other.z)
 
+    def sigma_noise(self, sigma_dict, x_restriction=None):
+        if x_restriction is not None and 'x' in sigma_dict and (sigma_dict['x'] + self.x) < x_restriction:
+            return False
+        for k, v in sigma_dict.items():
+            self.__dict__[k] += v
+        return True
+
     def __str__(self):
         return "X: "+str(self.x) + " Z: "+str(self.z) + "\nV: "+str(self.v) + " U: "+str(self.u) + \
                "\nTHETA: " + str(self.theta) + " OMEGA: " + str(self.omega) +"\nTAIL_ANGLE: " + str(self.tail_angle) + \

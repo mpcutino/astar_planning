@@ -92,7 +92,7 @@ def get_directsnet_values(model_folder, mlp_train_data_path, mlp_test_data_path,
 
 
 def get_sigma_metrics(model_folder, mlp_train_data_path, mlp_test_data_path, test_data_path_full_format,
-                      action_col, continuous_var, sigma_values, samples=500):
+                      action_col, continuous_var, sigma_values, samples=500, sigma_on_target=False):
 
     action_codes_dict = get_action_codes(mlp_test_data_path)
     full_format_df = load_csv(test_data_path_full_format,
@@ -113,16 +113,20 @@ def get_sigma_metrics(model_folder, mlp_train_data_path, mlp_test_data_path, tes
 
     sigma_list = []
     for _, r in aux_df.iterrows():
-        cs_fs = FlightState.from_jint_data(*r.current_state)
-        ts_fs = FlightState.from_jint_data(*r.target_state)
-
         for s_index, sigma in enumerate(sigma_values):
+            # leave it here, because target value can be changed on the path computation
+            cs_fs = FlightState.from_jint_data(*r.current_state)
+            ts_fs = FlightState.from_jint_data(*r.target_state)
+
             sigma_list.append(
                 {
                     'current_state': [], 'target_state': [], 'incremental_cost': [], 'id_trajectory': [], 'id_in_seq': []
                 })
+            if sigma_on_target:
+                # x position and z position on the mean array
+                sigma = {'x': abs(sigma*scaler.mean_[-2]), 'z': abs(sigma*scaler.mean_[-1])}
             path = do_one_path(model, cs_fs, ts_fs, action_codes_dict, r.timestep,
-                               scaler=scaler, device=device, sigma_noise=sigma)
+                               scaler=scaler, device=device, sigma_noise=sigma, noise_on_target=sigma_on_target)
             for i, s in enumerate(path):
                 sigma_list[s_index]['current_state'].append([s.u, s.v, s.omega, s.theta, s.x, s.z])
                 sigma_list[s_index]['target_state'].append(r.target_state)
@@ -202,6 +206,7 @@ if __name__ == '__main__':
     train_csv_path_ = "../../../data/landing_train_mlp_format.csv"
     test_csv_path_ = "../../../data/landing_test_mlp_format.csv"
     test_data_path_full_format_ = "../../../data/landing_test.csv"
+    sigma_on_target_ = True
     #
     #
 
@@ -213,7 +218,7 @@ if __name__ == '__main__':
         get_OSPA_values("direct_snet_sigma{0}_output_data.csv".format(s))
 
     # get_sigma_metrics(m_folder_, train_csv_path_, test_csv_path_, test_data_path_full_format_,
-    #                   action_col_, continuous_var_, sigma_vals_)
+    #                   action_col_, continuous_var_, sigma_vals_, sigma_on_target=sigma_on_target_)
 
     # get_directsnet_values(
     #     m_folder_,

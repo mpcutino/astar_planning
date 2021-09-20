@@ -53,15 +53,25 @@ def get_rf_values(model_path, mlp_train_data_path, mlp_test_data_path, test_data
     pd.DataFrame(dict_as_ospa).to_csv("rf_output_data.csv", index=False)
 
 
-def do_one_path(rf_model, cs_fs, ts_fs, action_codes_dict, timestep, scaler=None, sigma_noise=None):
+def do_one_path(rf_model, cs_fs, ts_fs, action_codes_dict, timestep,
+                scaler=None, sigma_noise=None, noise_on_target=False, noise_from=5):
     path = []
     input_fs = ts_fs.minus(cs_fs)
     # the input is the difference. Loop while the difference on the x-value is bigger than 0 or the model says stop
+    current_traj_point = 0
     while input_fs.x > 0:
         path.append(cs_fs)
-        input = [input_fs.u, input_fs.v, input_fs.omega, input_fs.theta, input_fs.x, input_fs.z]
-        input = scaler.transform([input]) if scaler else np.array([input])
-        if sigma_noise:
+        if sigma_noise and noise_on_target and current_traj_point >= noise_from:
+            new_v = {}
+            for n in sigma_noise:
+                new_v[n] = np.random.normal(0, sigma_noise[n], 1)
+            noise_applied = ts_fs.sigma_noise(new_v, x_restriction=cs_fs.x)
+            if noise_applied:
+                # the noise on the target is only added once
+                sigma_noise = None
+        input = np.array([[input_fs.u, input_fs.v, input_fs.omega, input_fs.theta, input_fs.x, input_fs.z]], dtype=object)
+        input = scaler.transform(input) if scaler else input
+        if sigma_noise and not noise_on_target:
             noise = np.random.normal(0, sigma_noise, len(input[0]))
             # as input is the difference among the states,
             # the noise added to the current state result in a subtraction of the current input
@@ -80,11 +90,12 @@ def do_one_path(rf_model, cs_fs, ts_fs, action_codes_dict, timestep, scaler=None
         # the input of the learning algorithm is dimensional, so it must be transformed back
         cs_fs = fs2dimensional(cs_fs)
         input_fs = ts_fs.minus(cs_fs)
+        current_traj_point += 1
     return path
 
 
 def get_sigma_metrics(model_path, mlp_train_data_path, mlp_test_data_path, test_data_path_full_format,
-                      action_col, continuous_var, sigma_values, samples=500):
+                      action_col, continuous_var, sigma_values, samples=500, sigma_on_target=False):
 
     action_codes_dict = get_action_codes(mlp_test_data_path)
     full_format_df = load_csv(test_data_path_full_format,
@@ -103,15 +114,19 @@ def get_sigma_metrics(model_path, mlp_train_data_path, mlp_test_data_path, test_
 
     sigma_list = []
     for _, r in aux_df.iterrows():
-        cs_fs = FlightState.from_jint_data(*r.current_state)
-        ts_fs = FlightState.from_jint_data(*r.target_state)
-
         for s_index, sigma in enumerate(sigma_values):
+            # leave it here, because target value can be changed on the path computation
+            cs_fs = FlightState.from_jint_data(*r.current_state)
+            ts_fs = FlightState.from_jint_data(*r.target_state)
             sigma_list.append(
                 {
                     'current_state': [], 'target_state': [], 'incremental_cost': [], 'id_trajectory': [], 'id_in_seq': []
                 })
-            path = do_one_path(model, cs_fs, ts_fs, action_codes_dict, r.timestep, scaler=scaler, sigma_noise=sigma)
+            if sigma_on_target:
+                # x position and z position on the mean array
+                sigma = {'x': abs(sigma*scaler.mean_[-2]), 'z': abs(sigma*scaler.mean_[-1])}
+            path = do_one_path(model, cs_fs, ts_fs, action_codes_dict, r.timestep,
+                               scaler=scaler, sigma_noise=sigma, noise_on_target=sigma_on_target)
             for i, s in enumerate(path):
                 sigma_list[s_index]['current_state'].append([s.u, s.v, s.omega, s.theta, s.x, s.z])
                 sigma_list[s_index]['target_state'].append(r.target_state)
@@ -153,11 +168,12 @@ if __name__ == '__main__':
     test_csv_path_ = "../../data/landing_test_mlp_format.csv"
     test_data_path_full_format_ = "../../data/landing_test.csv"
     sigma_vals_ = [.01, .02, .05, .1, .2, .5, 1]
+    sigma_on_target_ = True
     #
 
     # main("best_random_forest.rf", train_csv_path_, test_csv_path_, action_col_, continuous_var_)
     get_sigma_metrics("best_random_forest.rf", train_csv_path_, test_csv_path_, test_data_path_full_format_,
-                      action_col_, continuous_var_, sigma_vals_)
+                      action_col_, continuous_var_, sigma_vals_, sigma_on_target=sigma_on_target_)
 
     # get_rf_values(
     #     "best_random_forest.rf",
