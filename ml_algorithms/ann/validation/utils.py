@@ -1,5 +1,6 @@
 from ast import literal_eval
 
+import numpy as np
 from torch import FloatTensor
 
 from data.load_data import load_csv
@@ -21,14 +22,19 @@ def get_new_input(ts_fs, cs_fs):
     return ts_fs.minus(cs_fs)
 
 
-def do_one_path(model, cs_fs, ts_fs, action_codes_dict, timestep, scaler=None, device='cpu'):
+def do_one_path(model, cs_fs, ts_fs, action_codes_dict, timestep, scaler=None, device='cpu', sigma_noise=None):
     path = []
     input_fs = get_new_input(ts_fs, cs_fs)
     # the input is the difference. Loop while the difference on the x-value is bigger than 0 or the model says stop
     while input_fs.x > 0:
         path.append(cs_fs)
         input = [input_fs.u, input_fs.v, input_fs.omega, input_fs.theta, input_fs.x, input_fs.z]
-        input = scaler.transform([input]) if scaler else [input]
+        input = scaler.transform([input]) if scaler else np.array([input])
+        if sigma_noise:
+            noise = np.random.normal(0, sigma_noise, len(input[0]))
+            # as input is the difference among the states,
+            # the noise added to the current state result in a subtraction of the current input
+            input -= noise
 
         action_code = model(FloatTensor(input).to(device)).argmax(dim=1)
         action = list(action_codes_dict[action_code.item()]) + [timestep/tc]

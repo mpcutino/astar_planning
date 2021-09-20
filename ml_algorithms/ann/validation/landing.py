@@ -21,10 +21,12 @@ def get_OSPA_values(ospa_df_path):
         'converters': {"current_state": literal_eval, "target_state": literal_eval},
     })
     gb_df = ospa_df.groupby(by='id_trajectory', dropna=True)
+    print("Number of trajectories: {0}".format(len(gb_df)))
+
     if 'incremental_cost' in ospa_df.columns:
         # because we drop na, the last value in the incremental_cost has the total cost of the path.
         # Then we perform a simple aveage to get the average cost per trajectory.
-        aux = gb_df.agg({'incremental_cost': lambda x: x.iloc[-2]})['incremental_cost']
+        aux = gb_df.agg({'incremental_cost': lambda x: x.iloc[-2] if len(x) >= 2 else x})['incremental_cost']
         avg_cost = sum(aux)/len(aux)
 
         print("Avg. cost: {0}".format(avg_cost))
@@ -89,6 +91,49 @@ def get_directsnet_values(model_folder, mlp_train_data_path, mlp_test_data_path,
     pd.DataFrame(dict_as_ospa).to_csv("model_output_data.csv", index=False)
 
 
+def get_sigma_metrics(model_folder, mlp_train_data_path, mlp_test_data_path, test_data_path_full_format,
+                      action_col, continuous_var, sigma_values, samples=500):
+
+    action_codes_dict = get_action_codes(mlp_test_data_path)
+    full_format_df = load_csv(test_data_path_full_format,
+                              **{'converters': {"current_state": literal_eval, "target_state": literal_eval}})
+
+    gb_df = full_format_df.groupby(by='id_trajectory')
+    # get only the first value in the trajectory
+    aux_df = gb_df.agg({c: lambda x: x.iloc[0] for c in full_format_df.columns})
+    aux_df = aux_df.sample(samples)
+
+    out = load_train_val_test(mlp_train_data_path, mlp_test_data_path, action_col, continuous_var)
+    scaler = out[-1]
+
+    model = DirectSNet.load_model(model_folder)
+    use_cuda = torch.cuda.is_available()
+    device = torch.device('cuda' if use_cuda else 'cpu')
+    model.to(device)
+
+    sigma_list = []
+    for _, r in aux_df.iterrows():
+        cs_fs = FlightState.from_jint_data(*r.current_state)
+        ts_fs = FlightState.from_jint_data(*r.target_state)
+
+        for s_index, sigma in enumerate(sigma_values):
+            sigma_list.append(
+                {
+                    'current_state': [], 'target_state': [], 'incremental_cost': [], 'id_trajectory': [], 'id_in_seq': []
+                })
+            path = do_one_path(model, cs_fs, ts_fs, action_codes_dict, r.timestep,
+                               scaler=scaler, device=device, sigma_noise=sigma)
+            for i, s in enumerate(path):
+                sigma_list[s_index]['current_state'].append([s.u, s.v, s.omega, s.theta, s.x, s.z])
+                sigma_list[s_index]['target_state'].append(r.target_state)
+                sigma_list[s_index]['incremental_cost'].append(s.cost)
+                sigma_list[s_index]['id_trajectory'].append(r.id_trajectory)
+                sigma_list[s_index]['id_in_seq'].append(i)
+
+    for sigma, data in zip(sigma_values, sigma_list):
+        pd.DataFrame(data).to_csv("direct_snet_sigma{0}_output_data.csv".format(sigma), index=False)
+
+
 def compute_error(model_data_path, ospa_data_path, points=10):
     model_df = load_csv(model_data_path,
                         **{'converters': {"current_state": literal_eval, "target_state": literal_eval}})
@@ -125,16 +170,6 @@ def compute_error(model_data_path, ospa_data_path, points=10):
 
 def classification_report_like_sklearn(model_folder):
 
-    # class SklearnEmulator:
-    #
-    #     def __init__(self, model):
-    #         self.model = model
-    #
-    #     def predict(self, x):
-    #         out = self.model(x)
-    #         return out.numpy()
-
-    #
     continuous_var = ['u', 'v', 'omega', 'theta', 'x', 'z']
     action_col = "action_codes"
     train_csv_path = "../../../data/landing_train_mlp_format.csv"
@@ -148,7 +183,7 @@ def classification_report_like_sklearn(model_folder):
     device = torch.device('cuda' if use_cuda else 'cpu')
     model.to(device)
     X_test = torch.from_numpy(X_test).float()
-    # ske = SklearnEmulator(model)
+
     preds = []
     for m_input in X_test:
         y_pred = model(m_input.to(device).view(1, -1))
@@ -160,11 +195,25 @@ def classification_report_like_sklearn(model_folder):
 if __name__ == '__main__':
     #
     m_folder_ = "../"
+    sigma_vals_ = [.01, .02, .05, .1, .2, .5, 1]
+
+    continuous_var_ = ['u', 'v', 'omega', 'theta', 'x', 'z']
+    action_col_ = "action_codes"
+    train_csv_path_ = "../../../data/landing_train_mlp_format.csv"
+    test_csv_path_ = "../../../data/landing_test_mlp_format.csv"
+    test_data_path_full_format_ = "../../../data/landing_test.csv"
+    #
     #
 
     # get_OSPA_values("../../../data/landing_test.csv")
     # get_OSPA_values("model_output_data.csv")
-    # get_OSPA_values("../../random_forest/rf_output_data.csv")
+    for s in sigma_vals_:
+        print("\n\n++++ SIGMA {0} +++++\n".format(s))
+        # get_OSPA_values("../../random_forest/rf_sigma{0}_output_data.csv".format(s))
+        get_OSPA_values("direct_snet_sigma{0}_output_data.csv".format(s))
+
+    # get_sigma_metrics(m_folder_, train_csv_path_, test_csv_path_, test_data_path_full_format_,
+    #                   action_col_, continuous_var_, sigma_vals_)
 
     # get_directsnet_values(
     #     m_folder_,
@@ -172,7 +221,7 @@ if __name__ == '__main__':
     #     "../../../data/landing_test_mlp_format.csv",
     #     "../../../data/landing_test.csv"
     # )
-    classification_report_like_sklearn(m_folder_)
+    # classification_report_like_sklearn(m_folder_)
 
     # compute_error("model_output_data.csv", "../../../data/landing_test.csv")
     # compute_error("../../random_forest/rf_output_data.csv", "../../../data/landing_test.csv")

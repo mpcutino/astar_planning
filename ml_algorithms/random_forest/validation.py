@@ -1,3 +1,4 @@
+import time
 import pickle
 import numpy as np
 import pandas as pd
@@ -52,14 +53,19 @@ def get_rf_values(model_path, mlp_train_data_path, mlp_test_data_path, test_data
     pd.DataFrame(dict_as_ospa).to_csv("rf_output_data.csv", index=False)
 
 
-def do_one_path(rf_model, cs_fs, ts_fs, action_codes_dict, timestep, scaler=None):
+def do_one_path(rf_model, cs_fs, ts_fs, action_codes_dict, timestep, scaler=None, sigma_noise=None):
     path = []
     input_fs = ts_fs.minus(cs_fs)
     # the input is the difference. Loop while the difference on the x-value is bigger than 0 or the model says stop
     while input_fs.x > 0:
         path.append(cs_fs)
         input = [input_fs.u, input_fs.v, input_fs.omega, input_fs.theta, input_fs.x, input_fs.z]
-        input = scaler.transform([input]) if scaler else [input]
+        input = scaler.transform([input]) if scaler else np.array([input])
+        if sigma_noise:
+            noise = np.random.normal(0, sigma_noise, len(input[0]))
+            # as input is the difference among the states,
+            # the noise added to the current state result in a subtraction of the current input
+            input -= noise
 
         action_code = rf_model.predict(input)
         action = list(action_codes_dict[action_code[0]]) + [timestep/tc]
@@ -77,13 +83,47 @@ def do_one_path(rf_model, cs_fs, ts_fs, action_codes_dict, timestep, scaler=None
     return path
 
 
-def main(filename):
-    #
-    continuous_var = ['u', 'v', 'omega', 'theta', 'x', 'z']
-    action_col = "action_codes"
-    train_csv_path = "../../data/landing_train_mlp_format.csv"
-    test_csv_path = "../../data/landing_test_mlp_format.csv"
-    #
+def get_sigma_metrics(model_path, mlp_train_data_path, mlp_test_data_path, test_data_path_full_format,
+                      action_col, continuous_var, sigma_values, samples=500):
+
+    action_codes_dict = get_action_codes(mlp_test_data_path)
+    full_format_df = load_csv(test_data_path_full_format,
+                              **{'converters': {"current_state": literal_eval, "target_state": literal_eval}})
+
+    gb_df = full_format_df.groupby(by='id_trajectory')
+    # get only the first value in the trajectory
+    aux_df = gb_df.agg({c: lambda x: x.iloc[0] for c in full_format_df.columns})
+    aux_df = aux_df.sample(samples)
+
+    out = load_train_val_test(mlp_train_data_path, mlp_test_data_path, action_col, continuous_var)
+    scaler = out[-1]
+
+    with open(model_path, 'rb') as fd:
+        model = pickle.load(fd)
+
+    sigma_list = []
+    for _, r in aux_df.iterrows():
+        cs_fs = FlightState.from_jint_data(*r.current_state)
+        ts_fs = FlightState.from_jint_data(*r.target_state)
+
+        for s_index, sigma in enumerate(sigma_values):
+            sigma_list.append(
+                {
+                    'current_state': [], 'target_state': [], 'incremental_cost': [], 'id_trajectory': [], 'id_in_seq': []
+                })
+            path = do_one_path(model, cs_fs, ts_fs, action_codes_dict, r.timestep, scaler=scaler, sigma_noise=sigma)
+            for i, s in enumerate(path):
+                sigma_list[s_index]['current_state'].append([s.u, s.v, s.omega, s.theta, s.x, s.z])
+                sigma_list[s_index]['target_state'].append(r.target_state)
+                sigma_list[s_index]['incremental_cost'].append(s.cost)
+                sigma_list[s_index]['id_trajectory'].append(r.id_trajectory)
+                sigma_list[s_index]['id_in_seq'].append(i)
+
+    for sigma, data in zip(sigma_values, sigma_list):
+        pd.DataFrame(data).to_csv("rf_sigma{0}_output_data.csv".format(sigma), index=False)
+
+
+def main(filename, train_csv_path, test_csv_path, action_col, continuous_var):
     X_train, X_val, X_test, y_train, y_val, y_test, _ = load_train_val_test(train_csv_path, test_csv_path,
                                                                             action_col, continuous_var)
     gs_X = np.concatenate([X_train, X_val])
@@ -91,8 +131,11 @@ def main(filename):
 
     with open(filename, 'rb') as fd:
         loaded_model = pickle.load(fd)
+    start = time.time()
     result = loaded_model.score(X_test, y_test)
+    end = time.time()
     print("Testing score {0}".format(result))
+    print("Evaluated {0} items in {1:.4f}s".format(len(X_test), end-start))
 
     result = loaded_model.score(gs_X, gs_y)
     print("Full training dataset score {0}".format(result))
@@ -103,7 +146,18 @@ def main(filename):
 
 
 if __name__ == '__main__':
-    main("best_random_forest.rf")
+    #
+    continuous_var_ = ['u', 'v', 'omega', 'theta', 'x', 'z']
+    action_col_ = "action_codes"
+    train_csv_path_ = "../../data/landing_train_mlp_format.csv"
+    test_csv_path_ = "../../data/landing_test_mlp_format.csv"
+    test_data_path_full_format_ = "../../data/landing_test.csv"
+    sigma_vals_ = [.01, .02, .05, .1, .2, .5, 1]
+    #
+
+    # main("best_random_forest.rf", train_csv_path_, test_csv_path_, action_col_, continuous_var_)
+    get_sigma_metrics("best_random_forest.rf", train_csv_path_, test_csv_path_, test_data_path_full_format_,
+                      action_col_, continuous_var_, sigma_vals_)
 
     # get_rf_values(
     #     "best_random_forest.rf",
