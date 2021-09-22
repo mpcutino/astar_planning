@@ -77,10 +77,12 @@ def get_avg_trajectory_length(df_path):
 
 
 if __name__ == '__main__':
-    # group_by_split("data.csv")
+    problem = "mid_range"
+    # group_by_split(problem + "/data.csv")
 
-    transform_df("landing_train.csv", save_name="landing_train_mlp_format")
-    # transform_df("landing_test.csv", save_name="landing_test_mlp_format")
-    # check_same_action_codes("landing_train_mlp_format.csv", "landing_test_mlp_format.csv")
+    # transform_df("{0}/{0}_train.csv".format(problem), save_name="{0}/{0}_train_mlp_format".format(problem))
+    # transform_df("{0}/{0}_test.csv".format(problem), save_name="{0}/{0}_test_mlp_format".format(problem))
+    check_same_action_codes("{0}/{0}_train_mlp_format.csv".format(problem),
+                            "{0}/{0}_test_mlp_format.csv".format(problem))
 
     # split_train_test("filtered.csv", **{'test_size': .3, 'shuffle': True, 'random_state': 40})

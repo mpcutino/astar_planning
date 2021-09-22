@@ -44,5 +44,6 @@ def reformulate_xlsx(p, sheet_name, new_name="data.csv", **kwargs):
 if __name__ == '__main__':
     # df_ = load_xlsx("outputs_concat.xlsx", "Sheet1")
     # print(df_.columns)
+    problem = "mid_range"
 
-    reformulate_xlsx("outputs_concat.xlsx", "Sheet1")
+    reformulate_xlsx(problem + "/mid_range_data.xlsx", "Sheet1", new_name= problem + "/data.csv")
