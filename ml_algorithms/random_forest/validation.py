@@ -164,20 +164,22 @@ if __name__ == '__main__':
     #
     continuous_var_ = ['u', 'v', 'omega', 'theta', 'x', 'z']
     action_col_ = "action_codes"
-    train_csv_path_ = "../../data/landing_train_mlp_format.csv"
-    test_csv_path_ = "../../data/landing_test_mlp_format.csv"
-    test_data_path_full_format_ = "../../data/landing_test.csv"
     sigma_vals_ = [.01, .02, .05, .1, .2, .5, 1]
     sigma_on_target_ = True
+
+    problem_ = "mid_range"
+    train_csv_path_ = "../../data/{0}/{0}_train_mlp_format.csv".format(problem_)
+    test_csv_path_ = "../../data/{0}/{0}_test_mlp_format.csv".format(problem_)
+    test_data_path_full_format_ = "../../data/{0}/{0}_test.csv".format(problem_)
     #
 
     # main("best_random_forest.rf", train_csv_path_, test_csv_path_, action_col_, continuous_var_)
-    get_sigma_metrics("best_random_forest.rf", train_csv_path_, test_csv_path_, test_data_path_full_format_,
-                      action_col_, continuous_var_, sigma_vals_, sigma_on_target=sigma_on_target_)
+    # get_sigma_metrics("best_random_forest.rf", train_csv_path_, test_csv_path_, test_data_path_full_format_,
+    #                   action_col_, continuous_var_, sigma_vals_, sigma_on_target=sigma_on_target_)
 
-    # get_rf_values(
-    #     "best_random_forest.rf",
-    #     "../../data/landing_train_mlp_format.csv",
-    #     "../../data/landing_test_mlp_format.csv",
-    #     "../../data/landing_test.csv"
-    # )
+    get_rf_values(
+        "best_random_forest.rf",
+        train_csv_path_,
+        test_csv_path_,
+        test_data_path_full_format_
+    )

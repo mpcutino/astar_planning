@@ -24,12 +24,17 @@ def get_best_params(params, x_data, y_data):
 
 def main():
     #
+    problem_ = "mid_range"
     continuous_var = ['u', 'v', 'omega', 'theta', 'x', 'z']
     action_col = "action_codes"
-    train_csv_path = "../../data/landing_train_mlp_format.csv"
-    test_csv_path = "../../data/landing_test_mlp_format.csv"
+
+    # train_csv_path_ = "../../data/landing_train_mlp_format.csv"
+    train_csv_path_ = "../../data/{0}/{0}_train_mlp_format.csv".format(problem_)
+    # test_csv_path_ = "../../data/landing_test_mlp_format.csv"
+    test_csv_path_ = "../../data/{0}/{0}_test_mlp_format.csv".format(problem_)
+
     #
-    X_train, X_val, X_test, y_train, y_val, y_test, _ = load_train_val_test(train_csv_path, test_csv_path,
+    X_train, X_val, X_test, y_train, y_val, y_test, _ = load_train_val_test(train_csv_path_, test_csv_path_,
                                                                             action_col, continuous_var)
     # the grid search does cross-validation, so there is no need of splitting on training and validation data
     gs_X = np.concatenate([X_train, X_val])

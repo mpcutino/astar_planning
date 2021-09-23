@@ -172,12 +172,10 @@ def compute_error(model_data_path, ospa_data_path, points=10):
     print("Avg. difference between ospa and the model ", difference/counts)
 
 
-def classification_report_like_sklearn(model_folder):
+def classification_report_like_sklearn(model_folder, train_csv_path, test_csv_path):
 
     continuous_var = ['u', 'v', 'omega', 'theta', 'x', 'z']
     action_col = "action_codes"
-    train_csv_path = "../../../data/landing_train_mlp_format.csv"
-    test_csv_path = "../../../data/landing_test_mlp_format.csv"
     #
     X_train, X_val, X_test, y_train, y_val, y_test, _ = load_train_val_test(train_csv_path, test_csv_path,
                                                                             action_col, continuous_var)
@@ -199,34 +197,41 @@ def classification_report_like_sklearn(model_folder):
 if __name__ == '__main__':
     #
     m_folder_ = "../"
+    problem_ = "mid_range"
     sigma_vals_ = [.01, .02, .05, .1, .2, .5, 1]
 
     continuous_var_ = ['u', 'v', 'omega', 'theta', 'x', 'z']
     action_col_ = "action_codes"
-    train_csv_path_ = "../../../data/landing_train_mlp_format.csv"
-    test_csv_path_ = "../../../data/landing_test_mlp_format.csv"
-    test_data_path_full_format_ = "../../../data/landing_test.csv"
+    # train_csv_path_ = "../../../data/landing_train_mlp_format.csv"
+    # test_csv_path_ = "../../../data/landing_test_mlp_format.csv"
+    # test_data_path_full_format_ = "../../../data/landing_test.csv"
+
+    train_csv_path_ = "../../../data/{0}/{0}_train_mlp_format.csv".format(problem_)
+    test_csv_path_ = "../../../data/{0}/{0}_test_mlp_format.csv".format(problem_)
+    test_data_path_full_format_ = "../../../data/{0}/{0}_test.csv".format(problem_)
     sigma_on_target_ = True
     #
     #
 
-    # get_OSPA_values("../../../data/landing_test.csv")
+    # get_OSPA_values(test_data_path_full_format_)
     # get_OSPA_values("model_output_data.csv")
-    for s in sigma_vals_:
-        print("\n\n++++ SIGMA {0} +++++\n".format(s))
-        # get_OSPA_values("../../random_forest/rf_sigma{0}_output_data.csv".format(s))
-        get_OSPA_values("direct_snet_sigma{0}_output_data.csv".format(s))
+    get_OSPA_values("../../random_forest/rf_output_data.csv")
+
+    # for s in sigma_vals_:
+    #     print("\n\n++++ SIGMA {0} +++++\n".format(s))
+    #     # get_OSPA_values("../../random_forest/rf_sigma{0}_output_data.csv".format(s))
+    #     get_OSPA_values("direct_snet_sigma{0}_output_data.csv".format(s))
 
     # get_sigma_metrics(m_folder_, train_csv_path_, test_csv_path_, test_data_path_full_format_,
     #                   action_col_, continuous_var_, sigma_vals_, sigma_on_target=sigma_on_target_)
 
     # get_directsnet_values(
     #     m_folder_,
-    #     "../../../data/landing_train_mlp_format.csv",
-    #     "../../../data/landing_test_mlp_format.csv",
-    #     "../../../data/landing_test.csv"
+    #     train_csv_path_,
+    #     test_csv_path_,
+    #     test_data_path_full_format_
     # )
-    # classification_report_like_sklearn(m_folder_)
+    # classification_report_like_sklearn(m_folder_, train_csv_path_, test_csv_path_)
 
-    # compute_error("model_output_data.csv", "../../../data/landing_test.csv")
-    # compute_error("../../random_forest/rf_output_data.csv", "../../../data/landing_test.csv")
+    # compute_error("model_output_data.csv", test_data_path_full_format_)
+    # compute_error("../../random_forest/rf_output_data.csv", test_data_path_full_format_)

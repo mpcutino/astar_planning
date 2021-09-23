@@ -89,8 +89,12 @@ def do_eval():
 
 if __name__ == '__main__':
     # ====== PARAMS
-    train_csv_path_ = "../../data/landing_train_mlp_format.csv"
-    test_csv_path_ = "../../data/landing_test_mlp_format.csv"
+    problem_ = "mid_range"
+
+    # train_csv_path_ = "../../data/landing_train_mlp_format.csv"
+    train_csv_path_ = "../../data/{0}/{0}_train_mlp_format.csv".format(problem_)
+    # test_csv_path_ = "../../data/landing_test_mlp_format.csv"
+    test_csv_path_ = "../../data/{0}/{0}_test_mlp_format.csv".format(problem_)
 
     action_col_ = "action_codes"
     continuous_var = ['u', 'v', 'omega', 'theta', 'x', 'z']
